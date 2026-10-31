@@ -16,12 +16,26 @@ declare global {
  * Initializes and migrates a better-sqlite3 database.
  */
 export function initDatabase(dbPath?: string): Database.Database {
-  const targetPath = dbPath || process.env.DATABASE_PATH || DEFAULT_DB_PATH;
+  let targetPath = dbPath || process.env.DATABASE_PATH || DEFAULT_DB_PATH;
+
+  // On Vercel or read-only serverless environments, default to /tmp/shift.db
+  if (process.env.VERCEL && !dbPath && !process.env.DATABASE_PATH) {
+    targetPath = '/tmp/shift.db';
+  }
 
   if (targetPath !== ':memory:') {
     const dir = path.dirname(targetPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    } catch {
+      // Fallback to /tmp if root filesystem is read-only
+      targetPath = '/tmp/shift.db';
+      const tmpDir = path.dirname(targetPath);
+      if (!fs.existsSync(tmpDir)) {
+        fs.mkdirSync(tmpDir, { recursive: true });
+      }
     }
   }
 
@@ -30,7 +44,11 @@ export function initDatabase(dbPath?: string): Database.Database {
   // Set PRAGMAs
   db.pragma('foreign_keys = ON');
   if (targetPath !== ':memory:') {
-    db.pragma('journal_mode = WAL');
+    try {
+      db.pragma('journal_mode = WAL');
+    } catch {
+      db.pragma('journal_mode = DELETE');
+    }
   }
 
   // Run migrations
