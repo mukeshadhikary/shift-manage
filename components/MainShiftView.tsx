@@ -424,14 +424,17 @@ export function MainShiftView({
 
             {/* View container */}
             <div className="w-full flex-1 flex flex-col items-center">
-              {viewMode === 'sheet' && sheetModel ? (
-                <ShiftSheetPreview
-                  model={sheetModel}
-                  zoomPercent={zoomPercent}
-                  onZoomChange={handleZoomChange}
-                  onRowClick={handlePreviewRowClick}
-                />
-              ) : (
+              {sheetModel && (
+                <div className={`w-full ${viewMode === 'sheet' ? '' : 'hidden'}`}>
+                  <ShiftSheetPreview
+                    model={sheetModel}
+                    zoomPercent={zoomPercent}
+                    onZoomChange={handleZoomChange}
+                    onRowClick={handlePreviewRowClick}
+                  />
+                </div>
+              )}
+              {viewMode === 'list' && (
                 <div className="w-full py-4">
                   <EmployeeList
                     employees={shift.employees}

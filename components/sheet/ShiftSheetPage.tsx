@@ -64,69 +64,74 @@ export function ShiftSheetPage({ page, onRowClick, isPrint = false }: ShiftSheet
         </svg>
       )}
 
-      {/* Top Banner (131mm x 22mm flush top-left) */}
+      {/* Top Banner Left Bar (x = 4.5mm, y = 4.5mm, width = 4mm, height = 20mm) */}
       <div
-        className="absolute top-0 left-0 z-10"
-        style={{ width: `${banner.widthMm}mm`, height: `${banner.heightMm}mm` }}
-      >
-        <svg
-          width={`${banner.widthMm}mm`}
-          height={`${banner.heightMm}mm`}
-          viewBox="0 0 131 22"
-          className="absolute inset-0"
-        >
-          {isFaxMono ? (
-            <polygon points="0,0 131,0 117,22 0,22" fill="#FFFFFF" stroke="#000000" strokeWidth="1.2" />
-          ) : (
-            <>
-              {/* Navy outer polygon: (0,0) (131,0) (117,22) (0,22) */}
-              <polygon points="0,0 131,0 117,22 0,22" fill={banner.color} />
-              {/* White inner parallelogram: (4,0) (123,0) (110,20) (4,20) */}
-              <polygon points="4,0 123,0 110,20 4,20" fill="#FFFFFF" />
-            </>
-          )}
-        </svg>
+        className="absolute z-10"
+        style={{
+          left: '4.5mm',
+          top: '4.5mm',
+          width: '4mm',
+          height: '20mm',
+          backgroundColor: isFaxMono ? '#000000' : banner.color,
+        }}
+      />
 
-        {/* Title: bold ≈ 33pt black, starting at x = 11, centered vertically (y ≈ 12) */}
-        <div
-          className="absolute font-bold text-black flex items-center leading-none"
-          style={{
-            left: '11mm',
-            top: '0mm',
-            height: '20mm',
-            fontSize: `${33 * (design.fontScale / 100)}pt`,
-            letterSpacing: '0.04em',
-          }}
-        >
-          {banner.title}
-        </div>
+      {/* Top Banner Title: "ワールドワークス" (x = 10.5mm, y = 4.5mm, height = 20mm) */}
+      <div
+        className="absolute z-10 font-bold text-black flex items-center leading-none"
+        style={{
+          left: '10.5mm',
+          top: '4.5mm',
+          height: '20mm',
+          fontSize: `${32 * (design.fontScale / 100)}pt`,
+          letterSpacing: '0.04em',
+        }}
+      >
+        {banner.title}
       </div>
 
-      {/* Info Row Elements */}
-      {/* 会社名　ワールドワークスCMC (x = 10.7, y ≈ 29) */}
-      <div
-        className="absolute font-bold whitespace-nowrap text-black leading-none"
+      {/* Top Banner Diagonal Slash Stripe */}
+      <svg
+        className="absolute pointer-events-none z-10"
         style={{
-          left: '10.7mm',
-          top: '28.5mm',
-          fontSize: `${18 * (design.fontScale / 100)}pt`,
+          left: '92mm',
+          top: '4.5mm',
+          width: '36mm',
+          height: '20mm',
+        }}
+        viewBox="0 0 36 20"
+      >
+        <polygon
+          points="16,0 34,0 18,20 0,20"
+          fill={isFaxMono ? '#000000' : banner.color}
+        />
+      </svg>
+
+      {/* Info Row Elements */}
+      {/* 会社名　ワールドワークスCMC (x = 10.5mm, y = 28.0mm) */}
+      <div
+        className="absolute font-bold whitespace-nowrap text-black leading-none z-10"
+        style={{
+          left: '10.5mm',
+          top: '28.0mm',
+          fontSize: `${17 * (design.fontScale / 100)}pt`,
         }}
       >
         {info.companyNameFormatted}
       </div>
 
-      {/* 作業日 label & date (Centered at x ≈ 134mm) */}
+      {/* 作業日 label & date (Centered at x ≈ 138mm) */}
       <div
-        className="absolute flex flex-col items-center justify-center text-center"
+        className="absolute flex flex-col items-center justify-center text-center z-10"
         style={{
-          left: '122mm',
-          width: '26mm',
-          top: '19.5mm',
+          left: '125mm',
+          width: '28mm',
+          top: '17.5mm',
         }}
       >
         <span
-          className="font-bold text-[#777777] leading-tight"
-          style={{ fontSize: `${14 * (design.fontScale / 100)}pt` }}
+          className="font-bold text-[#555555] leading-tight"
+          style={{ fontSize: `${12.5 * (design.fontScale / 100)}pt` }}
         >
           {info.workDateLabel}
         </span>
@@ -138,73 +143,88 @@ export function ShiftSheetPage({ page, onRowClick, isPrint = false }: ShiftSheet
         </span>
       </div>
 
-      {/* Weekday & Manager (x = 160mm) */}
+      {/* Weekday & Manager (x = 156mm) */}
       <div
-        className="absolute flex flex-col"
+        className="absolute flex flex-col z-10"
         style={{
-          left: '160mm',
-          top: '19.8mm',
+          left: '156mm',
+          top: '17.5mm',
         }}
       >
         <span
           className="font-bold text-black leading-tight"
-          style={{ fontSize: `${14 * (design.fontScale / 100)}pt` }}
+          style={{ fontSize: `${13.5 * (design.fontScale / 100)}pt` }}
         >
           {info.weekdayValue}
         </span>
         <span
           className="font-bold text-black leading-tight mt-[2.5mm]"
-          style={{ fontSize: `${13 * (design.fontScale / 100)}pt` }}
+          style={{ fontSize: `${12.5 * (design.fontScale / 100)}pt` }}
         >
           {info.managerFormatted}
         </span>
       </div>
 
-      {/* Transmission Instructions & FAX (x = 201mm -> 290.1mm) */}
+      {/* Transmission Instructions & FAX (x = 196mm, width = 85mm, left-aligned) */}
       <div
-        className="absolute flex flex-col text-right"
+        className="absolute flex flex-col text-left z-10"
         style={{
-          left: '195mm',
-          width: '95.1mm',
-          top: '14.5mm',
+          left: '196mm',
+          width: '85mm',
+          top: '13.0mm',
         }}
       >
         <div
           className="font-bold text-black leading-tight"
-          style={{ fontSize: `${14 * (design.fontScale / 100)}pt` }}
+          style={{ fontSize: `${13.5 * (design.fontScale / 100)}pt` }}
         >
           {info.transmissionLabel}
         </div>
         <div
-          className="font-bold text-black leading-tight mt-[1.2mm]"
-          style={{ fontSize: `${11 * (design.fontScale / 100)}pt`, letterSpacing: '-0.02em' }}
+          className="font-bold text-black leading-tight mt-[1.5mm]"
+          style={{ fontSize: `${10.5 * (design.fontScale / 100)}pt`, letterSpacing: '-0.01em' }}
         >
           {info.transmissionValue}
         </div>
         <div
           className="font-bold text-black leading-tight mt-[1.5mm]"
-          style={{ fontSize: `${15 * (design.fontScale / 100)}pt`, letterSpacing: '0.02em' }}
+          style={{ fontSize: `${14.5 * (design.fontScale / 100)}pt`, letterSpacing: '0.02em' }}
         >
           {info.faxFormatted}
         </div>
       </div>
 
-      {/* Vertical Instruction Text in Left Strip (x ≈ 7mm, top y ≈ 48mm down to ≈ 189mm) */}
+      {/* Vertical Instruction Text in Left Strip (x = 3.5mm..9.5mm, top y = 35.0mm) */}
       <div
-        className="absolute z-10 select-none flex items-center justify-center font-bold text-black"
+        className="absolute z-10 select-none flex flex-col items-center justify-between"
         style={{
-          left: '4.5mm',
-          width: '5.5mm',
-          top: `${verticalText.topY}mm`,
-          height: `${verticalText.height}mm`,
-          writingMode: 'vertical-rl',
-          textOrientation: 'mixed',
-          fontSize: `${10 * (design.fontScale / 100)}pt`,
-          letterSpacing: '0.08em',
-          lineHeight: 1.1,
+          left: '3.5mm',
+          width: '6.0mm',
+          top: `${table.y}mm`,
+          height: `${table.headerRowHeight + table.bodyRowHeight * table.rows.length}mm`,
         }}
       >
-        {verticalText.text}
+        <div
+          className="font-bold text-black leading-tight"
+          style={{
+            writingMode: 'vertical-rl',
+            textOrientation: 'mixed',
+            fontSize: `${9 * (design.fontScale / 100)}pt`,
+            letterSpacing: '0.06em',
+          }}
+        >
+          {verticalText.text}
+        </div>
+        <div
+          className="flex flex-col items-center justify-around flex-1 mt-[2mm] text-black font-bold"
+          style={{ fontSize: '11pt', letterSpacing: '0.2em' }}
+        >
+          <span>•</span>
+          <span>•</span>
+          <span>•</span>
+          <span>•</span>
+          <span>•</span>
+        </div>
       </div>
 
       {/* Table (x = 10.7mm, width = 279.4mm, top y = 35.2mm) */}

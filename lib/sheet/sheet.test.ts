@@ -28,7 +28,7 @@ function createMockEmployee(id: number, name: string): ShiftEmployee {
 }
 
 describe('Sheet Model Generator (buildSheetModel)', () => {
-  it('handles 0 employees: generates 1 page with 11 blank alternating rows', () => {
+  it('handles 0 employees: generates 1 page with 10 blank alternating rows', () => {
     const model = buildSheetModel(
       { shift_date: '2026-10-31', employees: [] },
       DEFAULT_HEADER_SNAPSHOT,
@@ -39,7 +39,7 @@ describe('Sheet Model Generator (buildSheetModel)', () => {
     expect(model.pages[0].pageNumber).toBe(1);
     expect(model.pages[0].totalPages).toBe(1);
     expect(model.pages[0].pageNumberText).toBeNull(); // Single page doesn't show "1 / 1"
-    expect(model.pages[0].table.rows).toHaveLength(11);
+    expect(model.pages[0].table.rows).toHaveLength(10);
 
     // Row 1: odd, Row 2: even
     expect(model.pages[0].table.rows[0].isOdd).toBe(true);
@@ -47,14 +47,14 @@ describe('Sheet Model Generator (buildSheetModel)', () => {
     expect(model.pages[0].table.rows[1].isOdd).toBe(false);
     expect(model.pages[0].table.rows[1].backgroundColor).toBe(DEFAULT_DESIGN_SNAPSHOT.rowColorEven);
 
-    // NO continues from 1 to 11
+    // NO continues from 1 to 10
     expect(model.pages[0].table.rows[0].cells[0].text).toBe('1');
-    expect(model.pages[0].table.rows[10].cells[0].text).toBe('11');
+    expect(model.pages[0].table.rows[9].cells[0].text).toBe('10');
     // Name is empty
     expect(model.pages[0].table.rows[0].cells[2].text).toBe('');
   });
 
-  it('handles 4 employees: 1 page with 4 filled rows and 7 blank rows', () => {
+  it('handles 4 employees: 1 page with 4 filled rows and 6 blank rows', () => {
     const emps = [
       createMockEmployee(1, 'スタッフ1'),
       createMockEmployee(2, 'スタッフ2'),
@@ -69,14 +69,14 @@ describe('Sheet Model Generator (buildSheetModel)', () => {
     );
 
     expect(model.pages).toHaveLength(1);
-    expect(model.pages[0].table.rows).toHaveLength(11);
+    expect(model.pages[0].table.rows).toHaveLength(10);
     expect(model.pages[0].table.rows[0].cells[2].text).toBe('スタッフ1');
     expect(model.pages[0].table.rows[3].cells[2].text).toBe('スタッフ4');
     expect(model.pages[0].table.rows[4].cells[2].text).toBe(''); // blank row
   });
 
-  it('handles exactly 11 employees: 1 page with 11 filled rows', () => {
-    const emps = Array.from({ length: 11 }, (_, i) => createMockEmployee(i + 1, `スタッフ${i + 1}`));
+  it('handles exactly 10 employees: 1 page with 10 filled rows', () => {
+    const emps = Array.from({ length: 10 }, (_, i) => createMockEmployee(i + 1, `スタッフ${i + 1}`));
 
     const model = buildSheetModel(
       { shift_date: '2026-10-31', employees: emps },
@@ -86,12 +86,12 @@ describe('Sheet Model Generator (buildSheetModel)', () => {
 
     expect(model.pages).toHaveLength(1);
     expect(model.pages[0].totalPages).toBe(1);
-    expect(model.pages[0].table.rows[10].cells[2].text).toBe('スタッフ11');
+    expect(model.pages[0].table.rows[9].cells[2].text).toBe('スタッフ10');
     expect(model.pages[0].pageNumberText).toBeNull();
   });
 
-  it('handles 12 employees: 2 pages (page 1 has 11, page 2 has 1 + 10 blanks)', () => {
-    const emps = Array.from({ length: 12 }, (_, i) => createMockEmployee(i + 1, `スタッフ${i + 1}`));
+  it('handles 11 employees: 2 pages (page 1 has 10, page 2 has 1 + 9 blanks)', () => {
+    const emps = Array.from({ length: 11 }, (_, i) => createMockEmployee(i + 1, `スタッフ${i + 1}`));
 
     const model = buildSheetModel(
       { shift_date: '2026-10-31', employees: emps },
@@ -105,16 +105,16 @@ describe('Sheet Model Generator (buildSheetModel)', () => {
     expect(model.pages[1].pageNumberText).toBe('2 / 2');
 
     // Continuous NO across pages
-    expect(model.pages[0].table.rows[10].cells[0].text).toBe('11');
-    expect(model.pages[1].table.rows[0].cells[0].text).toBe('12');
-    expect(model.pages[1].table.rows[0].cells[2].text).toBe('スタッフ12');
-    expect(model.pages[1].table.rows[1].cells[0].text).toBe('13');
+    expect(model.pages[0].table.rows[9].cells[0].text).toBe('10');
+    expect(model.pages[1].table.rows[0].cells[0].text).toBe('11');
+    expect(model.pages[1].table.rows[0].cells[2].text).toBe('スタッフ11');
+    expect(model.pages[1].table.rows[1].cells[0].text).toBe('12');
     expect(model.pages[1].table.rows[1].cells[2].text).toBe(''); // blank
-    expect(model.pages[1].table.rows).toHaveLength(11);
+    expect(model.pages[1].table.rows).toHaveLength(10);
   });
 
-  it('handles 23 employees: 3 pages (page 1: 11, page 2: 11, page 3: 1 + 10 blanks)', () => {
-    const emps = Array.from({ length: 23 }, (_, i) => createMockEmployee(i + 1, `スタッフ${i + 1}`));
+  it('handles 21 employees: 3 pages (page 1: 10, page 2: 10, page 3: 1 + 9 blanks)', () => {
+    const emps = Array.from({ length: 21 }, (_, i) => createMockEmployee(i + 1, `スタッフ${i + 1}`));
 
     const model = buildSheetModel(
       { shift_date: '2026-10-31', employees: emps },
@@ -126,9 +126,9 @@ describe('Sheet Model Generator (buildSheetModel)', () => {
     expect(model.pages[0].pageNumberText).toBe('1 / 3');
     expect(model.pages[1].pageNumberText).toBe('2 / 3');
     expect(model.pages[2].pageNumberText).toBe('3 / 3');
-    expect(model.pages[2].table.rows[0].cells[0].text).toBe('23');
-    expect(model.pages[2].table.rows[0].cells[2].text).toBe('スタッフ23');
-    expect(model.pages[2].table.rows[1].cells[0].text).toBe('24');
+    expect(model.pages[2].table.rows[0].cells[0].text).toBe('21');
+    expect(model.pages[2].table.rows[0].cells[2].text).toBe('スタッフ21');
+    expect(model.pages[2].table.rows[1].cells[0].text).toBe('22');
   });
 
   it('generates date and weekday from shift_date', () => {

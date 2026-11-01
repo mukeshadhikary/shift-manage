@@ -207,16 +207,15 @@ export function buildSheetModel(
 ): SheetModel {
   const pageWidthMm = 297;
   const pageHeightMm = 210;
-  const tableX = designSnapshot.margins?.left ?? 10.7;
-  const tableRightMargin = designSnapshot.margins?.right ?? 6.9;
-  const tableWidth = pageWidthMm - tableX - tableRightMargin; // ≈ 279.4 mm
-  const tableTopY = 35.2;
-  const headerRowHeight = 12.3;
-  const bodyRowHeight = designSnapshot.rowHeightMm || 11.1;
+  const tableX = designSnapshot.margins?.left ?? 10.5;
+  const tableRightMargin = designSnapshot.margins?.right ?? 10.5;
+  const tableWidth = pageWidthMm - tableX - tableRightMargin; // 276.0 mm
+  const tableTopY = 35.0;
+  const headerRowHeight = 11.5;
+  const bodyRowHeight = designSnapshot.rowHeightMm || 11.5;
 
-  // Available height for body rows ≈ 122.5 mm
-  const availableHeight = 122.5;
-  const rowsPerPage = Math.max(1, Math.floor(availableHeight / bodyRowHeight)); // 11 with defaults
+  // Exactly 10 rows per page as per Japanese shift sheet standard
+  const rowsPerPage = 10;
 
   const totalEmployees = shift.employees.length;
   const totalPages = Math.max(1, Math.ceil(totalEmployees / rowsPerPage));
@@ -362,16 +361,16 @@ export function buildSheetModel(
         rows,
       },
       verticalText: {
-        x: 7,
-        topY: 48,
-        height: 141,
+        x: 3.5,
+        topY: tableTopY,
+        height: headerRowHeight + rowsPerPage * bodyRowHeight,
         text: headerSnapshot.verticalInstructions,
       },
       approvalBox: {
         x: approvalBoxX,
-        y: 172,
+        y: tableTopY + headerRowHeight + rowsPerPage * bodyRowHeight + 1.5,
         width: approvalBoxWidth,
-        height: 27.7,
+        height: 27.5,
         title: headerSnapshot.approvalTitle,
         position: headerSnapshot.approvalPosition,
       },

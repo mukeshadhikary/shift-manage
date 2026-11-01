@@ -188,19 +188,19 @@ function buildWorksheetForPage(workbook: ExcelJS.Workbook, page: SheetPageModel)
   const transLblCell = sheet.getCell(1, 10);
   transLblCell.value = page.info.transmissionLabel;
   transLblCell.font = { name: FONT_FAMILY, size: 10, bold: true };
-  transLblCell.alignment = { horizontal: 'right', vertical: 'middle' };
+  transLblCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
   sheet.mergeCells(2, 10, 2, 12);
   const transValCell = sheet.getCell(2, 10);
   transValCell.value = page.info.transmissionValue;
   transValCell.font = { name: FONT_FAMILY, size: 9, bold: true };
-  transValCell.alignment = { horizontal: 'right', vertical: 'middle' };
+  transValCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
   sheet.mergeCells(3, 10, 3, 12);
   const faxCell = sheet.getCell(3, 10);
   faxCell.value = page.info.faxFormatted;
   faxCell.font = { name: FONT_FAMILY, size: 12, bold: true };
-  faxCell.alignment = { horizontal: 'right', vertical: 'middle' };
+  faxCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
   // --- 3. TABLE HEADER ROW (Row 4) ---
   const headerRowNum = 4;

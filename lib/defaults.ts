@@ -34,7 +34,7 @@ export const DEFAULT_HEADER_SNAPSHOT: HeaderSnapshot = {
   managerName: '島津 様',
   faxNumber: '049-293-7855',
   transmissionInstructions: '❶派遣会社様 → ❷丸和運輸機関 → ❸派遣会社様',
-  verticalInstructions: 'スタッフ様自署サイン→弊社社員サイン→各派遣会社様へFAX（翌日9:00までに送付）',
+  verticalInstructions: 'スタッフ様自署サイン→弊社社員サイン→各派遣会社様へFAX(翌日AM9:00までに送付)',
   approvalTitle: '丸和運輸機関',
   approvalPosition: 'センター長',
   columnLabels: [...DEFAULT_COLUMN_LABELS],
@@ -43,15 +43,15 @@ export const DEFAULT_HEADER_SNAPSHOT: HeaderSnapshot = {
 
 export const DEFAULT_DESIGN_SNAPSHOT: DesignSnapshot = {
   headerColor: '#0F2A66',
-  tableHeaderColor: '#44546A',
-  rowColorOdd: '#F0F0F0',
-  rowColorEven: '#DCE8F6',
+  tableHeaderColor: '#0F2A66',
+  rowColorOdd: '#FFFFFF',
+  rowColorEven: '#EDF5FF',
   fontScale: 100,
-  rowHeightMm: 11.1,
+  rowHeightMm: 11.5,
   columnWidths: [...DEFAULT_COLUMN_WIDTHS],
   margins: {
-    left: 10.7,
-    right: 6.9,
+    left: 10.5,
+    right: 10.5,
     bottom: 10.0,
   },
   additionalSettings: {

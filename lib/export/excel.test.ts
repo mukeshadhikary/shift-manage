@@ -87,8 +87,8 @@ describe('Excel Generation and Reopen Verification', () => {
     expect(String(vertCell.value)).toContain('↓');
   });
 
-  it('generates 2 worksheets for 12+ employees', async () => {
-    const emps = Array.from({ length: 13 }, (_, i) => mockEmployee(i + 1, `スタッフ${i + 1}`));
+  it('generates 2 worksheets for 11+ employees', async () => {
+    const emps = Array.from({ length: 11 }, (_, i) => mockEmployee(i + 1, `スタッフ${i + 1}`));
     const model = buildSheetModel(
       { shift_date: '2026-10-31', employees: emps },
       DEFAULT_HEADER_SNAPSHOT,
@@ -106,10 +106,10 @@ describe('Excel Generation and Reopen Verification', () => {
     expect(reopened.getWorksheet('1')).toBeDefined();
     expect(reopened.getWorksheet('2')).toBeDefined();
 
-    // Worksheet 2 row 1 has continuous NO = 12
+    // Worksheet 2 row 1 has continuous NO = 11
     const sheet2 = reopened.getWorksheet('2')!;
-    expect(sheet2.getCell('B5').value).toBe(12);
-    expect(sheet2.getCell('D5').value).toBe('スタッフ12');
+    expect(sheet2.getCell('B5').value).toBe(11);
+    expect(sheet2.getCell('D5').value).toBe('スタッフ11');
   });
 
   it('correctly styles row 3 with white background and black text', async () => {
