@@ -27,7 +27,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run start -- -p 3088',
+    command: 'npm run start -- -p 3088 -H 127.0.0.1',
     url: 'http://127.0.0.1:3088',
     reuseExistingServer: true,
     timeout: 60 * 1000,

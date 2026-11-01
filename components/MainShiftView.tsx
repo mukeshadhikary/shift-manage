@@ -23,15 +23,15 @@ import { ConfirmDialog } from './ui/ConfirmDialog';
 import { BottomSheet } from './ui/BottomSheet';
 import { useToast } from './ui/Toast';
 import {
-  copyPreviousShiftAction,
-  deleteShiftAction,
-  addEmployeeAction,
-  updateEmployeeAction,
-  deleteEmployeeAction,
-  reorderEmployeesAction,
-  fetchShiftDataAction,
-  fetchShiftDatesInRangeAction,
-} from '@/app/actions';
+  getShiftByDate,
+  listShiftDatesInRange,
+  copyPreviousShift,
+  deleteShift,
+  addEmployee,
+  updateEmployee,
+  deleteEmployee,
+  reorderEmployees,
+} from '@/lib/db/idb';
 import {
   Plus,
   Copy,
@@ -89,8 +89,8 @@ export function MainShiftView({
   // Load shift data when currentDate changes
   const loadDateData = useCallback(async (date: string) => {
     try {
-      const data = await fetchShiftDataAction(date);
-      setShift(data.shift);
+      const data = await getShiftByDate(date);
+      setShift(data);
     } catch {
       showToast(ja.toasts.networkError, 'error');
     }
@@ -101,7 +101,7 @@ export function MainShiftView({
     try {
       const start = addDays(centerDate, -30);
       const end = addDays(centerDate, 30);
-      const dates = await fetchShiftDatesInRangeAction(start, end);
+      const dates = await listShiftDatesInRange(start, end);
       setShiftDates(dates);
     } catch {
       // ignore
@@ -117,35 +117,68 @@ export function MainShiftView({
     refreshShiftDots(date);
   };
 
-  // Fit to width zoom calculation
+  // Fit to width zoom calculation (capped at 100% maximum)
   const calculateFitToWidth = useCallback(() => {
     if (!containerRef.current) return 75;
     const containerWidth = containerRef.current.clientWidth - 32;
     // 297mm in pixels at 96 DPI: 297 * 96 / 25.4 = 1122.5px
     const a4WidthPx = 1122.5;
     const calculated = (containerWidth / a4WidthPx) * 100;
-    return Math.max(25, Math.min(150, Math.round(calculated)));
+    return Math.max(25, Math.min(100, Math.round(calculated)));
   }, []);
 
+  // Sheet canvas zoom change handler (clamped between 25% and 150%)
+  const handleZoomChange = useCallback((newZoom: number) => {
+    setZoomPercent(Math.max(25, Math.min(150, newZoom)));
+  }, []);
 
   useEffect(() => {
+    // Initial mount: calculate fit-to-width after container measurement
+    const frameId = requestAnimationFrame(() => {
+      setZoomPercent(calculateFitToWidth());
+    });
+
     const handleResize = () => {
       setZoomPercent(calculateFitToWidth());
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleResize);
+    };
   }, [calculateFitToWidth]);
+
+  // Initial data load on mount or date change
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const data = await getShiftByDate(currentDate);
+        if (isMounted) setShift(data);
+        const start = addDays(currentDate, -30);
+        const end = addDays(currentDate, 30);
+        const dates = await listShiftDatesInRange(start, end);
+        if (isMounted) setShiftDates(dates);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentDate]);
 
   // Copy previous shift handler
   const handleCopyPreviousShift = async () => {
     startTransition(async () => {
-      const res = await copyPreviousShiftAction(currentDate);
-      if (res.success) {
+      try {
+        const copied = await copyPreviousShift(currentDate);
+        setShift(copied);
         showToast(ja.toasts.copied, 'success');
-        loadDateData(currentDate);
         refreshShiftDots(currentDate);
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.copyFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -155,13 +188,14 @@ export function MainShiftView({
     if (!shift) return;
     setShowShiftDeleteConfirm(false);
     startTransition(async () => {
-      const res = await deleteShiftAction(shift.id, currentDate);
-      if (res.success) {
+      try {
+        await deleteShift(shift.id, currentDate);
         showToast(ja.toasts.deleted, 'success');
         setShift(null);
         refreshShiftDots(currentDate);
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.deleteFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -171,12 +205,13 @@ export function MainShiftView({
     if (!shift) return;
     setIsAddStaffSheetOpen(false);
     startTransition(async () => {
-      const res = await addEmployeeAction(shift.id, empData);
-      if (res.success) {
+      try {
+        await addEmployee(shift.id, empData);
         showToast(ja.toasts.saved, 'success');
         loadDateData(currentDate);
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.saveFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -186,12 +221,13 @@ export function MainShiftView({
     if (!editingEmployee) return;
     setEditingEmployee(null);
     startTransition(async () => {
-      const res = await updateEmployeeAction(editingEmployee.id, empData);
-      if (res.success) {
+      try {
+        await updateEmployee(editingEmployee.id, empData);
         showToast(ja.toasts.saved, 'success');
         loadDateData(currentDate);
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.saveFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -203,12 +239,13 @@ export function MainShiftView({
     setEmployeeToDelete(null);
     setEditingEmployee(null);
     startTransition(async () => {
-      const res = await deleteEmployeeAction(target.id);
-      if (res.success) {
+      try {
+        await deleteEmployee(target.id);
         showToast(ja.toasts.deleted, 'success');
         loadDateData(currentDate);
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.deleteFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -225,8 +262,12 @@ export function MainShiftView({
     setShift({ ...shift, employees: emps });
 
     const ids = emps.map((e) => e.id);
-    await reorderEmployeesAction(shift.id, ids);
-    loadDateData(currentDate);
+    try {
+      await reorderEmployees(shift.id, ids);
+      loadDateData(currentDate);
+    } catch {
+      loadDateData(currentDate);
+    }
   };
 
   // Tap row on preview
@@ -335,12 +376,12 @@ export function MainShiftView({
                 {viewMode === 'sheet' && (
                   <ZoomControls
                     zoomPercent={zoomPercent}
-                    onZoomChange={setZoomPercent}
+                    onZoomChange={handleZoomChange}
                     onResetZoom={() => setZoomPercent(calculateFitToWidth())}
                   />
                 )}
 
-                <ExportMenu shiftDate={currentDate} />
+                <ExportMenu shiftDate={currentDate} shift={shift} />
 
                 {/* More ⋯ Menu */}
                 <div className="relative">
@@ -387,7 +428,7 @@ export function MainShiftView({
                 <ShiftSheetPreview
                   model={sheetModel}
                   zoomPercent={zoomPercent}
-                  onZoomChange={setZoomPercent}
+                  onZoomChange={handleZoomChange}
                   onRowClick={handlePreviewRowClick}
                 />
               ) : (
@@ -453,11 +494,13 @@ export function MainShiftView({
           onClose={() => setIsAddStaffSheetOpen(false)}
           title={ja.employee.newTitle}
         >
-          <EmployeeForm
-            onSave={handleAddEmployeeSave}
-            onCancel={() => setIsAddStaffSheetOpen(false)}
-            existingCodes={shift.employees.map((e) => e.employee_code).filter(Boolean) as string[]}
-          />
+          <div className="py-2">
+            <EmployeeForm
+              onSave={handleAddEmployeeSave}
+              onCancel={() => setIsAddStaffSheetOpen(false)}
+              existingCodes={shift.employees.map((e) => e.employee_code).filter(Boolean) as string[]}
+            />
+          </div>
         </BottomSheet>
       )}
 
@@ -468,31 +511,33 @@ export function MainShiftView({
           onClose={() => setEditingEmployee(null)}
           title={ja.employee.editTitle}
         >
-          <EmployeeForm
-            initialData={editingEmployee}
-            onSave={handleUpdateEmployeeSave}
-            onDelete={() => setEmployeeToDelete(editingEmployee)}
-            onMoveUp={() => {
-              const idx = shift.employees.findIndex((e) => e.id === editingEmployee.id);
-              if (idx > 0) handleMoveEmployee(idx, idx - 1);
-            }}
-            onMoveDown={() => {
-              const idx = shift.employees.findIndex((e) => e.id === editingEmployee.id);
-              if (idx < shift.employees.length - 1) handleMoveEmployee(idx, idx + 1);
-            }}
-            canMoveUp={shift.employees.findIndex((e) => e.id === editingEmployee.id) > 0}
-            canMoveDown={
-              shift.employees.findIndex((e) => e.id === editingEmployee.id) <
-              shift.employees.length - 1
-            }
-            onCancel={() => setEditingEmployee(null)}
-            existingCodes={
-              shift.employees
-                .filter((e) => e.id !== editingEmployee.id)
-                .map((e) => e.employee_code)
-                .filter(Boolean) as string[]
-            }
-          />
+          <div className="py-2">
+            <EmployeeForm
+              initialData={editingEmployee}
+              onSave={handleUpdateEmployeeSave}
+              onDelete={() => setEmployeeToDelete(editingEmployee)}
+              onMoveUp={() => {
+                const idx = shift.employees.findIndex((e) => e.id === editingEmployee.id);
+                if (idx > 0) handleMoveEmployee(idx, idx - 1);
+              }}
+              onMoveDown={() => {
+                const idx = shift.employees.findIndex((e) => e.id === editingEmployee.id);
+                if (idx < shift.employees.length - 1) handleMoveEmployee(idx, idx + 1);
+              }}
+              canMoveUp={shift.employees.findIndex((e) => e.id === editingEmployee.id) > 0}
+              canMoveDown={
+                shift.employees.findIndex((e) => e.id === editingEmployee.id) <
+                shift.employees.length - 1
+              }
+              onCancel={() => setEditingEmployee(null)}
+              existingCodes={
+                shift.employees
+                  .filter((e) => e.id !== editingEmployee.id)
+                  .map((e) => e.employee_code)
+                  .filter(Boolean) as string[]
+              }
+            />
+          </div>
         </BottomSheet>
       )}
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { HeaderSnapshot, DesignSnapshot } from '@/lib/types';
 import { ja } from '@/lib/i18n/ja';
 import { ShiftSheetPreview } from '../sheet/ShiftSheetPreview';
@@ -8,9 +8,15 @@ import { buildSheetModel } from '@/lib/sheet';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
 import {
-  saveGlobalSettingsAction,
-  restoreDefaultSettingsAction,
-} from '@/app/actions';
+  getCompanySettings,
+  getDesignSettings,
+  updateCompanySettings,
+  updateDesignSettings,
+  restoreDefaultSettings,
+  applyCurrentSettingsToShift,
+  exportFullBackupJSON,
+  importFullBackupJSON,
+} from '@/lib/db/idb';
 import {
   RotateCcw,
   Check,
@@ -18,19 +24,21 @@ import {
   FileText,
   Palette,
   Eye,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { DEFAULT_HEADER_SNAPSHOT, DEFAULT_DESIGN_SNAPSHOT } from '@/lib/defaults';
 
 interface SettingsViewProps {
-  initialCompanySettings: HeaderSnapshot;
-  initialDesignSettings: DesignSnapshot;
+  initialCompanySettings?: HeaderSnapshot;
+  initialDesignSettings?: DesignSnapshot;
   currentDateShiftId?: number | null;
   currentDate?: string;
 }
 
 export function SettingsView({
-  initialCompanySettings,
-  initialDesignSettings,
+  initialCompanySettings = DEFAULT_HEADER_SNAPSHOT,
+  initialDesignSettings = DEFAULT_DESIGN_SNAPSHOT,
   currentDateShiftId,
   currentDate = '2026-10-31',
 }: SettingsViewProps) {
@@ -42,6 +50,12 @@ export function SettingsView({
 
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [showApplyToCurrentConfirm, setShowApplyToCurrentConfirm] = useState(false);
+
+  // Load from IndexedDB on mount
+  useEffect(() => {
+    getCompanySettings().then(setCompany);
+    getDesignSettings().then(setDesign);
+  }, []);
 
   // Live mini preview model
   const previewModel = buildSheetModel(
@@ -73,18 +87,16 @@ export function SettingsView({
 
   const handleSaveSettings = async () => {
     startTransition(async () => {
-      const res = await saveGlobalSettingsAction({
-        companySettings: company,
-        designSettings: design,
-      });
-
-      if (res.success) {
+      try {
+        await updateCompanySettings(company);
+        await updateDesignSettings(design);
         showToast(ja.settings.saveSuccess, 'success');
         if (currentDateShiftId) {
           setShowApplyToCurrentConfirm(true);
         }
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.saveFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -94,13 +106,12 @@ export function SettingsView({
     if (!currentDateShiftId) return;
 
     startTransition(async () => {
-      const res = await saveGlobalSettingsAction({
-        companySettings: company,
-        designSettings: design,
-        applyToShiftId: currentDateShiftId,
-      });
-      if (res.success) {
+      try {
+        await applyCurrentSettingsToShift(currentDateShiftId);
         showToast(ja.settings.applySuccess, 'success');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.saveFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -108,13 +119,14 @@ export function SettingsView({
   const handleRestoreDefaults = async () => {
     setShowRestoreConfirm(false);
     startTransition(async () => {
-      const res = await restoreDefaultSettingsAction();
-      if (res.success) {
-        setCompany({ ...DEFAULT_HEADER_SNAPSHOT });
-        setDesign({ ...DEFAULT_DESIGN_SNAPSHOT });
+      try {
+        const restored = await restoreDefaultSettings();
+        setCompany(restored.company);
+        setDesign(restored.design);
         showToast(ja.settings.restoreSuccess, 'success');
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.saveFailed;
+        showToast(message, 'error');
       }
     });
   };
@@ -129,6 +141,44 @@ export function SettingsView({
     const next = [...design.columnWidths];
     next[index] = newWidth;
     setDesign({ ...design, columnWidths: next });
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const jsonStr = await exportFullBackupJSON();
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shift_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast('バックアップを保存しました', 'success');
+    } catch {
+      showToast('バックアップのエクスポートに失敗しました', 'error');
+    }
+  };
+
+  const handleImportBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      await importFullBackupJSON(text);
+      const newCompany = await getCompanySettings();
+      const newDesign = await getDesignSettings();
+      setCompany(newCompany);
+      setDesign(newDesign);
+      showToast('データを復元しました', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'インポートに失敗しました';
+      showToast(msg, 'error');
+    } finally {
+      e.target.value = '';
+    }
   };
 
   return (
@@ -596,14 +646,26 @@ export function SettingsView({
         <p className="text-xs text-gray-500 leading-relaxed">
           {ja.settings.backupDesc}
         </p>
-        <div>
-          <a
-            href="/api/backup"
-            download
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 text-xs font-semibold text-gray-800 transition-colors"
+        <div className="flex flex-wrap gap-2.5">
+          <button
+            type="button"
+            onClick={handleExportBackup}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 text-xs font-semibold text-gray-800 transition-colors cursor-pointer"
           >
-            <span>{ja.settings.downloadDb}</span>
-          </a>
+            <Download className="w-3.5 h-3.5" />
+            <span>データのエクスポート (JSON)</span>
+          </button>
+
+          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 active:bg-gray-200 text-xs font-semibold text-gray-800 transition-colors cursor-pointer">
+            <Upload className="w-3.5 h-3.5" />
+            <span>データのインポート (JSON)</span>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportBackup}
+              className="hidden"
+            />
+          </label>
         </div>
       </div>
 

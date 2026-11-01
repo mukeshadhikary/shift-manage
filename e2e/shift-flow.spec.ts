@@ -115,14 +115,31 @@ test.describe('Japanese Shift Sheet App - Complete Acceptance Flow', () => {
     await page.locator('button:has-text("シフト")').filter({ visible: true }).first().click();
     await expect(page.getByText('ワールドワークス', { exact: true })).toBeVisible();
 
-    // 12. Zoom in (disabled per requirement), out and reset
+    // 12. Zoom in, out and reset
     const zoomInBtn = page.locator('button[aria-label="拡大"]');
     const zoomOutBtn = page.locator('button[aria-label="縮小"]');
     const resetBtn = page.locator('button[aria-label="リセット"]');
 
-    await expect(zoomInBtn).toBeDisabled();
+    await expect(zoomInBtn).toBeEnabled();
+    await expect(zoomOutBtn).toBeEnabled();
+
+    // Verify clicking zoom in increases zoom percentage
+    const zoomDisplay = page.locator('button[aria-label="縮小"] + span');
+    // Allow initial mount fit-to-width measurement to settle
+    await page.waitForTimeout(100);
+    const initialZoomText = await zoomDisplay.textContent();
+    const initialVal = parseInt(initialZoomText?.replace('%', '') || '0', 10);
+
+    await zoomInBtn.click();
+    await expect(zoomDisplay).toHaveText(`${Math.min(150, initialVal + 15)}%`);
+
     await zoomOutBtn.click();
+    await expect(zoomDisplay).toHaveText(`${initialVal}%`);
+
+    // Zoom in then reset to fit-to-width
+    await zoomInBtn.click();
     await resetBtn.click();
+    await expect(zoomDisplay).toHaveText(`${initialVal}%`);
 
     // 13. Export genuine Excel file (.xlsx)
     const exportBtn = page.locator('button[aria-label="出力"]');

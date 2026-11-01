@@ -69,8 +69,9 @@ function runMigrations(db: Database.Database): void {
 
   const migrationsDir = path.join(__dirname, 'migrations');
   if (!fs.existsSync(migrationsDir)) {
-    // If running in bundled/transpiled environments, fallback to inline 001 migration
+    // If running in bundled/transpiled environments, fallback to inline migrations
     applyMigration001(db);
+    applyMigration002(db);
     return;
   }
 
@@ -162,6 +163,24 @@ function applyMigration001(db: Database.Database): void {
   const tx = db.transaction(() => {
     db.exec(sql);
     db.pragma('user_version = 1');
+  });
+  tx();
+}
+
+function applyMigration002(db: Database.Database): void {
+  const currentVersionRow = db.prepare('PRAGMA user_version').get() as { user_version: number };
+  const currentVersion = currentVersionRow ? currentVersionRow.user_version : 0;
+  if (currentVersion >= 2) return;
+
+  const sql = `
+    UPDATE company_settings
+    SET vertical_instructions = 'スタッフ様自署サイン→弊社社員サイン→各派遣会社様へFAX（翌日9:00までに送付）'
+    WHERE vertical_instructions LIKE '%AM9:00%';
+  `;
+
+  const tx = db.transaction(() => {
+    db.exec(sql);
+    db.pragma('user_version = 2');
   });
   tx();
 }

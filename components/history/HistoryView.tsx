@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { ja } from '@/lib/i18n/ja';
 import { formatJapaneseDate, getWeekdayJST, isSundayOrHoliday, isSaturday } from '@/lib/date';
 import { Calendar, Trash2, ChevronRight, Users, Clock } from 'lucide-react';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { useToast } from '../ui/Toast';
-import { deleteShiftAction } from '@/app/actions';
+import { listAllShifts, deleteShift } from '@/lib/db/idb';
 
 interface ShiftHistoryItem {
   id: number;
@@ -16,16 +16,27 @@ interface ShiftHistoryItem {
 }
 
 interface HistoryViewProps {
-  initialShifts: ShiftHistoryItem[];
+  initialShifts?: ShiftHistoryItem[];
   onSelectDate: (date: string) => void;
 }
 
-export function HistoryView({ initialShifts, onSelectDate }: HistoryViewProps) {
+export function HistoryView({ initialShifts = [], onSelectDate }: HistoryViewProps) {
   const { showToast } = useToast();
   const [shifts, setShifts] = useState<ShiftHistoryItem[]>(initialShifts);
   const [shiftToDelete, setShiftToDelete] = useState<ShiftHistoryItem | null>(null);
   const [selectedMonthFilter, setSelectedMonthFilter] = useState<string>('all');
   const [isPending, startTransition] = useTransition();
+
+  // Load latest shifts from IndexedDB on mount
+  useEffect(() => {
+    listAllShifts()
+      .then((data) => {
+        if (data && Array.isArray(data)) {
+          setShifts(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Group shifts by year-month (e.g. "2026-10")
   const groupedByMonth: Record<string, ShiftHistoryItem[]> = {};
@@ -48,12 +59,13 @@ export function HistoryView({ initialShifts, onSelectDate }: HistoryViewProps) {
     setShiftToDelete(null);
 
     startTransition(async () => {
-      const res = await deleteShiftAction(target.id, target.shift_date);
-      if (res.success) {
+      try {
+        await deleteShift(target.id, target.shift_date);
         showToast(ja.toasts.deleted, 'success');
         setShifts((prev) => prev.filter((s) => s.id !== target.id));
-      } else {
-        showToast(res.error, 'error');
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : ja.toasts.deleteFailed;
+        showToast(message, 'error');
       }
     });
   };

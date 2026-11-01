@@ -44,6 +44,7 @@ html {
   background-color: var(--background);
   color: var(--foreground);
   -webkit-text-size-adjust: 100%;
+  touch-action: pan-x pan-y;
 }
 
 body {
@@ -53,12 +54,19 @@ body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-family-base);
+  touch-action: pan-x pan-y;
+  overscroll-behavior-y: none;
 }
 
 /* Prevent automatic iOS zoom on focus by ensuring inputs are at least 16px */
 input, select, textarea, button {
   font-family: inherit;
   font-size: 16px;
+}
+
+/* Prevent mobile double-tap zoom distortion on interactive controls */
+button, a, input, select, textarea {
+  touch-action: manipulation;
 }
 
 /* Print specific styles */

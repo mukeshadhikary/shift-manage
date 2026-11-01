@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { BottomSheet } from '../ui/BottomSheet';
 import { HeaderSnapshot } from '@/lib/types';
 import { ja } from '@/lib/i18n/ja';
-import { updateShiftHeaderAction } from '@/app/actions';
+import { updateShiftHeaderSnapshot } from '@/lib/db/idb';
 import { useToast } from '../ui/Toast';
 
 interface HeaderEditModalProps {
@@ -29,15 +29,16 @@ export function HeaderEditModal({
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    const res = await updateShiftHeaderAction(shiftId, header);
-    setIsSaving(false);
-
-    if (res.success) {
+    try {
+      await updateShiftHeaderSnapshot(shiftId, header);
       showToast(ja.toasts.saved, 'success');
       onSuccess();
       onClose();
-    } else {
-      showToast(res.error, 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ja.toasts.saveFailed;
+      showToast(message, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -121,7 +122,7 @@ export function HeaderEditModal({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               {ja.settings.approvalTitle}

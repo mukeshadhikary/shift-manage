@@ -19,12 +19,16 @@ export async function GET(request: Request, context: RouteContext) {
     );
   }
 
-  const shift = getShiftByDate(date);
+  let shift = null;
+  try {
+    shift = getShiftByDate(date);
+  } catch {
+    // Server database might not exist on serverless deployments
+  }
+
   if (!shift) {
-    return NextResponse.json(
-      { error: `指定された日付 (${date}) のシフト表が見つかりません。` },
-      { status: 404 }
-    );
+    // Redirect to client-side vector print page which loads from client IndexedDB / localStorage
+    return NextResponse.redirect(new URL(`/print/${date}?autoprint=1`, request.url));
   }
 
   try {
@@ -47,8 +51,8 @@ export async function GET(request: Request, context: RouteContext) {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'PDFの生成に失敗しました';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    // Graceful fallback to client-side print view if Chromium fails in serverless environment
+    return NextResponse.redirect(new URL(`/print/${date}?autoprint=1`, request.url));
   }
 }

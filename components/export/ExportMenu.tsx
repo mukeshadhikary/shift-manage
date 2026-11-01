@@ -2,19 +2,33 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ja } from '@/lib/i18n/ja';
-import { Download, FileSpreadsheet, FileText, Printer, Share2, ChevronDown } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Printer, ChevronDown } from 'lucide-react';
 import { useToast } from '../ui/Toast';
+import type { ShiftWithEmployees } from '@/lib/types';
+import { exportShiftToExcel, exportShiftToPdfOrPrint } from '@/lib/export/clientExport';
+import { getShiftByDate } from '@/lib/db/idb';
 
 interface ExportMenuProps {
   shiftDate: string;
+  shift?: ShiftWithEmployees | null;
 }
 
-export function ExportMenu({ shiftDate }: ExportMenuProps) {
+export function ExportMenu({ shiftDate, shift }: ExportMenuProps) {
   const { showToast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const pdfBlobRef = useRef<Blob | null>(null);
+
+  // Sync snapshot to localStorage so print/export views can access it synchronously
+  useEffect(() => {
+    if (shift && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(`shift_snapshot_${shiftDate}`, JSON.stringify(shift));
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [shift, shiftDate]);
 
   // Close on click outside
   useEffect(() => {
@@ -31,81 +45,55 @@ export function ExportMenu({ shiftDate }: ExportMenuProps) {
     };
   }, [isOpen]);
 
-  // Pre-fetch PDF when menu opens so Web Share API can use the file directly inside tap handler
-  useEffect(() => {
-    if (isOpen && !pdfBlobRef.current) {
-      fetch(`/api/shifts/${shiftDate}/pdf`)
-        .then((res) => {
-          if (res.ok) return res.blob();
-          return null;
-        })
-        .then((blob) => {
-          if (blob) pdfBlobRef.current = blob;
-        })
-        .catch(() => {
-          // ignore prefetch errors
-        });
-    }
-  }, [isOpen, shiftDate]);
-
-  const triggerDownload = (url: string) => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.setAttribute('download', '');
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  const handleDownloadPdf = () => {
-    setIsOpen(false);
-    triggerDownload(`/api/shifts/${shiftDate}/pdf`);
-  };
-
-  const handlePrint = () => {
-    setIsOpen(false);
-    const printWindow = window.open(`/print/${shiftDate}`, '_blank');
-    if (printWindow) {
-      printWindow.addEventListener('load', () => {
-        setTimeout(() => {
-          printWindow.print();
-        }, 500);
-      });
+  const resolveShift = async (): Promise<ShiftWithEmployees | null> => {
+    if (shift) return shift;
+    try {
+      return await getShiftByDate(shiftDate);
+    } catch {
+      return null;
     }
   };
 
-  const handleShare = async () => {
+  const handleDownloadExcel = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
     setIsOpen(false);
-    const filename = `${shiftDate}_${ja.app.title}.pdf`;
 
     try {
-      let blob = pdfBlobRef.current;
-      if (!blob) {
-        setIsExporting(true);
-        const res = await fetch(`/api/shifts/${shiftDate}/pdf`);
-        setIsExporting(false);
-        if (!res.ok) throw new Error(ja.export.pdfError);
-        blob = await res.blob();
+      setIsExporting(true);
+      const targetShift = await resolveShift();
+      if (!targetShift) {
+        showToast('シフト表が見つかりません', 'error');
+        return;
       }
-
-      const file = new File([blob], filename, { type: 'application/pdf' });
-
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: `${ja.app.title} (${shiftDate})`,
-          text: `${shiftDate} の${ja.app.title}です。`,
-          files: [file],
-        });
-      } else {
-        // Fallback to normal download
-        handleDownloadPdf();
-      }
+      await exportShiftToExcel(targetShift);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        showToast(ja.export.pdfError, 'error');
-        // Fallback
-        handleDownloadPdf();
-      }
+      const message = err instanceof Error ? err.message : ja.export.excelError;
+      showToast(message, 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleDownloadPdf = async (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    setIsOpen(false);
+
+    try {
+      const targetShift = await resolveShift();
+      exportShiftToPdfOrPrint(shiftDate, targetShift);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ja.export.pdfError;
+      showToast(message, 'error');
+    }
+  };
+
+  const handlePrint = async () => {
+    setIsOpen(false);
+    try {
+      const targetShift = await resolveShift();
+      exportShiftToPdfOrPrint(shiftDate, targetShift);
+    } catch {
+      window.open(`/print/${shiftDate}?autoprint=1`, '_blank');
     }
   };
 
@@ -128,44 +116,33 @@ export function ExportMenu({ shiftDate }: ExportMenuProps) {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150 divide-y divide-gray-100">
           <div className="py-1">
-            <a
-              href={`/api/shifts/${shiftDate}/xlsx`}
-              download
-              onClick={() => setIsOpen(false)}
+            <button
+              type="button"
+              onClick={handleDownloadExcel}
               className="w-full px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{ja.export.excel}</span>
-            </a>
+            </button>
 
-            <a
-              href={`/api/shifts/${shiftDate}/pdf`}
-              download
-              onClick={() => setIsOpen(false)}
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
               className="w-full px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
               <FileText className="w-4 h-4 text-red-600 shrink-0" />
               <span>{ja.export.pdf}</span>
-            </a>
+            </button>
           </div>
 
           <div className="py-1">
             <button
               type="button"
               onClick={handlePrint}
-              className="w-full px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
+              className="w-full px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors cursor-pointer"
             >
               <Printer className="w-4 h-4 text-[#0F2A66] shrink-0" />
               <span>{ja.export.print}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleShare}
-              className="w-full px-4 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors"
-            >
-              <Share2 className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>{ja.export.share}</span>
             </button>
           </div>
         </div>

@@ -6,7 +6,7 @@ import type { EmployeeInput } from '@/lib/db/schema';
 import { EmployeeForm } from '../employee/EmployeeForm';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ja } from '@/lib/i18n/ja';
-import { saveShiftWizardAction } from '@/app/actions';
+import { saveShiftWizard } from '@/lib/db/idb';
 import { useToast } from '../ui/Toast';
 import {
   X,
@@ -141,20 +141,21 @@ function ShiftCreationWizardContent({
 
   const handleFinalComplete = async () => {
     setIsSaving(true);
-    const res = await saveShiftWizardAction({
-      shift_date: shiftDate,
-      header_snapshot: shiftHeader,
-      design_snapshot: defaultDesignSnapshot,
-      employees: draftEmployees,
-    });
-    setIsSaving(false);
-
-    if (res.success) {
+    try {
+      await saveShiftWizard({
+        shift_date: shiftDate,
+        header_snapshot: shiftHeader,
+        design_snapshot: defaultDesignSnapshot,
+        employees: draftEmployees,
+      });
       showToast(ja.toasts.saved, 'success');
       onSuccess();
       onClose();
-    } else {
-      showToast(res.error, 'error');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : ja.toasts.saveFailed;
+      showToast(message, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -241,14 +242,14 @@ function ShiftCreationWizardContent({
                   {draftEmployees.map((emp, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-200 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-gray-200 transition-colors gap-2"
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-6 h-6 rounded-full bg-white text-[#0F2A66] text-xs font-bold flex items-center justify-center shadow-2xs border border-gray-200">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <span className="w-6 h-6 rounded-full bg-white text-[#0F2A66] text-xs font-bold flex items-center justify-center shadow-2xs border border-gray-200 shrink-0">
                           {idx + 1}
                         </span>
-                        <div>
-                          <div className="font-bold text-sm text-gray-900">
+                        <div className="min-w-0 flex-1">
+                          <div className="font-bold text-sm text-gray-900 truncate">
                             {emp.employee_name}
                             {emp.employee_code && (
                               <span className="ml-2 font-mono text-xs text-gray-500 font-normal">
@@ -256,13 +257,13 @@ function ShiftCreationWizardContent({
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-gray-500 mt-0.5">
+                          <div className="text-[11px] text-gray-500 mt-0.5 truncate">
                             {emp.planned_start_time || '--:--'} 〜 {emp.planned_end_time || '--:--'} | {ja.employee.breakTime}: {emp.break_time || ja.common.none}
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
                           onClick={() => handleMoveUpDraft(idx)}

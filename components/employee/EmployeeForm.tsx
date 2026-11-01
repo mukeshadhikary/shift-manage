@@ -1,19 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import type { EmployeeInput } from '@/lib/db/schema';
 import { ja } from '@/lib/i18n/ja';
-import { formatTimeHM } from '@/lib/date';
+import { formatTimeHM, formatTime24H } from '@/lib/date';
 import { ArrowUp, ArrowDown, Trash2, Sparkles } from 'lucide-react';
-import { fetchStaffSuggestionsAction, searchStaffSuggestionsAction } from '@/app/actions';
-
-interface StaffSuggestion {
-  employee_name: string;
-  employee_code: string | null;
-  nickname: string | null;
-  planned_start_time: string | null;
-  planned_end_time: string | null;
-  break_time: string | null;
-  locker_number: string | null;
-}
+import { searchStaffSuggestions, StaffSuggestion } from '@/lib/db/idb';
 
 interface EmployeeFormProps {
   initialData?: Partial<EmployeeInput>;
@@ -60,22 +50,11 @@ export function EmployeeForm({
   const [suggestions, setSuggestions] = useState<StaffSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Initial fetch on mount
-  useEffect(() => {
-    fetchStaffSuggestionsAction()
-      .then((data) => {
-        if (data && Array.isArray(data)) {
-          setSuggestions(data);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
   // Real-time database scan when typing staff name
   useEffect(() => {
     const trimmed = name.trim();
     if (!trimmed) {
-      fetchStaffSuggestionsAction()
+      searchStaffSuggestions('')
         .then((data) => {
           if (data && Array.isArray(data)) setSuggestions(data);
         })
@@ -84,7 +63,7 @@ export function EmployeeForm({
     }
 
     const timer = setTimeout(() => {
-      searchStaffSuggestionsAction(trimmed)
+      searchStaffSuggestions(trimmed)
         .then((results) => {
           if (results && Array.isArray(results)) {
             setSuggestions(results);
@@ -124,9 +103,9 @@ export function EmployeeForm({
       employee_code: code.trim() || null,
       nickname: nickname.trim() || null,
       remarks: remarks.trim() || null,
-      planned_start_time: plannedStartTime ? formatTimeHM(plannedStartTime) : null,
-      actual_start_time: actualStartTime ? formatTimeHM(actualStartTime) : null,
-      planned_end_time: plannedEndTime ? formatTimeHM(plannedEndTime) : null,
+      planned_start_time: plannedStartTime ? formatTime24H(plannedStartTime) : null,
+      actual_start_time: actualStartTime ? formatTime24H(actualStartTime) : null,
+      planned_end_time: plannedEndTime ? formatTime24H(plannedEndTime) : null,
       break_time: (breakTime === 'なし' || breakTime === ja.common.none) ? null : breakTime ? formatTimeHM(breakTime) : null,
       locker_number: lockerNumber.trim() || null,
       signature: signature.trim() || null,
@@ -232,8 +211,8 @@ export function EmployeeForm({
         )}
       </div>
 
-      {/* CODE & ニックネーム (2 columns) */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* CODE & ニックネーム (Responsive columns) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-semibold text-gray-700 mb-1">
             {ja.employee.code}
@@ -268,7 +247,7 @@ export function EmployeeForm({
 
       {/* 始業予定時間 & 始業実時間 */}
       <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2.5">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               {ja.employee.plannedStartTime}
@@ -296,28 +275,30 @@ export function EmployeeForm({
         </div>
 
         {/* Quick Chips for Start Time */}
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[10px] text-gray-400 font-medium mr-1">{ja.employee.quickStartTime}</span>
-          {COMMON_START_TIMES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setPlannedStartTime(t)}
-              className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
-                plannedStartTime === t
-                  ? 'bg-[#0F2A66] text-white border-[#0F2A66]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] text-gray-400 font-medium">{ja.employee.quickStartTime}</span>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {COMMON_START_TIMES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setPlannedStartTime(t)}
+                className={`px-2.5 py-1 text-xs rounded-lg border transition-colors min-h-[32px] sm:min-h-[28px] ${
+                  formatTime24H(plannedStartTime) === formatTime24H(t)
+                    ? 'bg-[#0F2A66] text-white border-[#0F2A66]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* 終了予定時間 & 休憩時間 */}
       <div className="p-3 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2.5">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-semibold text-gray-700 mb-1">
               {ja.employee.plannedEndTime}
@@ -346,46 +327,50 @@ export function EmployeeForm({
         </div>
 
         {/* Quick Chips for End Time */}
-        <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[10px] text-gray-400 font-medium mr-1">{ja.employee.quickEndTime}</span>
-          {COMMON_END_TIMES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setPlannedEndTime(t)}
-              className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
-                plannedEndTime === t
-                  ? 'bg-[#0F2A66] text-white border-[#0F2A66]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] text-gray-400 font-medium">{ja.employee.quickEndTime}</span>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {COMMON_END_TIMES.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setPlannedEndTime(t)}
+                className={`px-2.5 py-1 text-xs rounded-lg border transition-colors min-h-[32px] sm:min-h-[28px] ${
+                  formatTime24H(plannedEndTime) === formatTime24H(t)
+                    ? 'bg-[#0F2A66] text-white border-[#0F2A66]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Quick Chips for Break Time */}
-        <div className="flex flex-wrap gap-1.5 items-center mt-1">
-          <span className="text-[10px] text-gray-400 font-medium mr-1">{ja.employee.quickBreakTime}</span>
-          {BREAK_TIME_CHIPS.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              onClick={() => setBreakTime(chip)}
-              className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
-                breakTime === chip
-                  ? 'bg-[#0F2A66] text-white border-[#0F2A66]'
-                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
-              }`}
-            >
-              {chip}
-            </button>
-          ))}
+        <div className="flex flex-col gap-1.5 mt-1">
+          <span className="text-[10px] text-gray-400 font-medium">{ja.employee.quickBreakTime}</span>
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {BREAK_TIME_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => setBreakTime(chip)}
+                className={`px-2.5 py-1 text-xs rounded-lg border transition-colors min-h-[32px] sm:min-h-[28px] ${
+                  breakTime === chip
+                    ? 'bg-[#0F2A66] text-white border-[#0F2A66]'
+                    : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ロッカー番号 & 備考 */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-semibold text-gray-700 mb-1">
             {ja.employee.lockerNumber}

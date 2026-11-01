@@ -15,19 +15,16 @@ export function ZoomControls({
   onZoomChange,
   onResetZoom,
 }: ZoomControlsProps) {
-  // Zoom In is disabled per user requirements; Zoom Out is enabled
   const handleZoomOut = () => {
     onZoomChange(Math.max(25, zoomPercent - 15));
   };
 
-  const handleSet100 = () => {
-    if (zoomPercent < 100) {
-      onZoomChange(100);
-    }
+  const handleZoomIn = () => {
+    onZoomChange(Math.min(150, zoomPercent + 15));
   };
 
   return (
-    <div className="flex items-center gap-1 bg-white/90 backdrop-blur-md px-2 py-1.5 rounded-2xl border border-gray-200/80 shadow-xs select-none">
+    <div className="flex items-center gap-1 bg-white/90 backdrop-blur-md px-2 py-1.5 rounded-2xl border border-gray-200/80 shadow-xs select-none touch-manipulation">
       <button
         type="button"
         onClick={handleZoomOut}
@@ -40,7 +37,6 @@ export function ZoomControls({
       </button>
 
       <span
-        onClick={handleSet100}
         className="px-2 py-1 rounded-lg text-xs font-semibold text-gray-700 min-h-[38px] flex items-center justify-center font-mono cursor-default"
       >
         {Math.round(zoomPercent)}%
@@ -48,10 +44,11 @@ export function ZoomControls({
 
       <button
         type="button"
-        disabled={true}
-        className="p-1.5 rounded-xl text-gray-300 cursor-not-allowed opacity-30 min-h-[38px] min-w-[38px] flex items-center justify-center"
+        onClick={handleZoomIn}
+        disabled={zoomPercent >= 150}
+        className="p-1.5 rounded-xl text-gray-700 hover:bg-gray-100 active:bg-gray-200 disabled:opacity-30 min-h-[38px] min-w-[38px] flex items-center justify-center transition-colors"
         aria-label={ja.common.zoomIn}
-        title="拡大は無効化されています"
+        title={ja.common.zoomIn}
       >
         <ZoomIn className="w-4 h-4" />
       </button>

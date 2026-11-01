@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ShiftWithEmployees,
@@ -12,15 +12,19 @@ import { MainShiftView } from './MainShiftView';
 import { HistoryView } from './history/HistoryView';
 import { SettingsView } from './settings/SettingsView';
 import { Calendar, History, Settings } from 'lucide-react';
+import { DEFAULT_HEADER_SNAPSHOT, DEFAULT_DESIGN_SNAPSHOT } from '@/lib/defaults';
+import { getCompanySettings, getDesignSettings } from '@/lib/db/idb';
 
 interface AppShellProps {
   initialDate: string;
   initialTab: 'shift' | 'history' | 'settings';
-  initialShift: ShiftWithEmployees | null;
-  companySettings: HeaderSnapshot;
-  designSettings: DesignSnapshot;
-  initialShiftDates: string[];
-  initialAllShifts: Array<{
+  initialShift?: ShiftWithEmployees | null;
+  companySettings?: HeaderSnapshot;
+  designSettings?: DesignSnapshot;
+  defaultCompanySettings?: HeaderSnapshot;
+  defaultDesignSettings?: DesignSnapshot;
+  initialShiftDates?: string[];
+  initialAllShifts?: Array<{
     id: number;
     shift_date: string;
     staff_count: number;
@@ -31,14 +35,28 @@ interface AppShellProps {
 export function AppShell({
   initialDate,
   initialTab,
-  initialShift,
+  initialShift = null,
   companySettings,
   designSettings,
-  initialShiftDates,
-  initialAllShifts,
+  defaultCompanySettings = DEFAULT_HEADER_SNAPSHOT,
+  defaultDesignSettings = DEFAULT_DESIGN_SNAPSHOT,
+  initialShiftDates = [],
+  initialAllShifts = [],
 }: AppShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [activeCompany, setActiveCompany] = useState<HeaderSnapshot>(
+    companySettings || defaultCompanySettings
+  );
+  const [activeDesign, setActiveDesign] = useState<DesignSnapshot>(
+    designSettings || defaultDesignSettings
+  );
+
+  useEffect(() => {
+    getCompanySettings().then(setActiveCompany);
+    getDesignSettings().then(setActiveDesign);
+  }, []);
 
   const tabParam = searchParams.get('tab');
   const activeTab: 'shift' | 'history' | 'settings' =
@@ -62,6 +80,21 @@ export function AppShell({
     params.set('tab', 'shift');
     router.replace(`/?${params.toString()}`, { scroll: false });
   };
+
+  // Block native iOS Safari gesture zoom in across the app
+  useEffect(() => {
+    const blockGesture = (e: Event) => {
+      e.preventDefault();
+    };
+    document.addEventListener('gesturestart', blockGesture, { passive: false });
+    document.addEventListener('gesturechange', blockGesture, { passive: false });
+    document.addEventListener('gestureend', blockGesture, { passive: false });
+    return () => {
+      document.removeEventListener('gesturestart', blockGesture);
+      document.removeEventListener('gesturechange', blockGesture);
+      document.removeEventListener('gestureend', blockGesture);
+    };
+  }, []);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F2F2F7]">
@@ -126,8 +159,8 @@ export function AppShell({
             key={selectedDate}
             initialDate={selectedDate}
             initialShift={selectedDate === initialDate ? initialShift : null}
-            defaultCompanySettings={companySettings}
-            defaultDesignSettings={designSettings}
+            defaultCompanySettings={activeCompany}
+            defaultDesignSettings={activeDesign}
             initialShiftDates={initialShiftDates}
           />
         )}
@@ -141,8 +174,8 @@ export function AppShell({
 
         {activeTab === 'settings' && (
           <SettingsView
-            initialCompanySettings={companySettings}
-            initialDesignSettings={designSettings}
+            initialCompanySettings={activeCompany}
+            initialDesignSettings={activeDesign}
             currentDateShiftId={initialShift?.shift_date === selectedDate ? initialShift?.id : null}
             currentDate={selectedDate}
           />

@@ -23,7 +23,7 @@ test.describe('Extra Checks: 12+ Staff Pagination & Exports', () => {
     await nameInput.fill('スタッフ 1');
     await expect(nameInput).toHaveValue('スタッフ 1');
     await page.click('button:has-text("次へ")');
-    await expect(page.locator('text=スタッフ 1')).toBeVisible();
+    await expect(page.getByText('スタッフ 1', { exact: true }).first()).toBeVisible();
 
     // Add 11 more employees (total 12)
     for (let i = 2; i <= 12; i++) {
@@ -31,7 +31,7 @@ test.describe('Extra Checks: 12+ Staff Pagination & Exports', () => {
       await nameInput.fill(`スタッフ ${i}`);
       await expect(nameInput).toHaveValue(`スタッフ ${i}`);
       await page.click('button:has-text("次へ")');
-      await expect(page.locator(`text=スタッフ ${i}`)).toBeVisible();
+      await expect(page.getByText(`スタッフ ${i}`, { exact: true }).first()).toBeVisible();
     }
 
     await page.click('button:has-text("シフトを登録完了")');
